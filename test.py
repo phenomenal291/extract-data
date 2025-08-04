@@ -55,6 +55,11 @@ def evaluate_phone_extraction(excel_file='data.xlsx'):
     false_positives = 0
     false_negatives = 0
     
+    # Track false predictions
+    false_positive_indices = []  # Predicted phone but no ground truth
+    false_negative_indices = []  # Ground truth phone but not predicted
+    exact_match_errors = []      # Detailed mismatch information
+    
     for idx, row in df.iterrows():
         content = row.get('content', '')
         tagged_content = row.get('human_tagged_content', '')
@@ -74,10 +79,27 @@ def evaluate_phone_extraction(excel_file='data.xlsx'):
         false_positives += fp
         false_negatives += fn
         
-        # For binary classification metrics
+        # Track indices of false predictions
         has_true_phone = len(true_phones) > 0
         has_pred_phone = len(pred_phones) > 0
         
+        # Binary classification errors
+        if has_pred_phone and not has_true_phone:
+            false_positive_indices.append(idx)
+        if has_true_phone and not has_pred_phone:
+            false_negative_indices.append(idx)
+            
+        # Exact match errors (when phones don't match exactly)
+        if true_phones != pred_phones:
+            exact_match_errors.append({
+                'index': idx,
+                'true_phones': list(true_phones),
+                'predicted_phones': list(pred_phones),
+                'missing_phones': list(true_phones - pred_phones),
+                'extra_phones': list(pred_phones - true_phones)
+            })
+        
+        # For binary classification metrics
         y_true.append(1 if has_true_phone else 0)
         y_pred.append(1 if has_pred_phone else 0)
     
@@ -111,6 +133,11 @@ def evaluate_phone_extraction(excel_file='data.xlsx'):
             'true_negatives': tn,
             'false_positives': fp_binary,
             'false_negatives': fn_binary
+        },
+        'false_prediction_indices': {
+            'false_positive_indices': false_positive_indices,
+            'false_negative_indices': false_negative_indices,
+            'exact_match_errors': exact_match_errors
         }
     }
     
@@ -135,6 +162,28 @@ def print_evaluation_report(results):
     print(f"   F1-Score:  {binary['f1_score']:.4f}")
     print(f"   TP: {binary['true_positives']}, TN: {binary['true_negatives']}")
     print(f"   FP: {binary['false_positives']}, FN: {binary['false_negatives']}")
+    
+    # Print false prediction indices
+    false_preds = results['false_prediction_indices']
+    
+    print("\n3. FALSE PREDICTION INDICES:")
+    print(f"   False Positive Indices (predicted phone but no ground truth): {false_preds['false_positive_indices']}")
+    print(f"   False Negative Indices (ground truth phone but not predicted): {false_preds['false_negative_indices']}")
+    
+    print("\n4. EXACT MATCH ERRORS:")
+    if false_preds['exact_match_errors']:
+        for error in false_preds['exact_match_errors'][:10]:  # Show first 10 errors
+            print(f"   Index {error['index']}:")
+            print(f"     True phones: {error['true_phones']}")
+            print(f"     Predicted phones: {error['predicted_phones']}")
+            print(f"     Missing phones: {error['missing_phones']}")
+            print(f"     Extra phones: {error['extra_phones']}")
+            print()
+        
+        if len(false_preds['exact_match_errors']) > 10:
+            print(f"   ... and {len(false_preds['exact_match_errors']) - 10} more errors")
+    else:
+        print("   No exact match errors found!")
 
 if __name__ == "__main__":
     # Run evaluation

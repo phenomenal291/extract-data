@@ -10,9 +10,19 @@ def phone(text):
     Returns:
         list: Normalized phone numbers starting with '0'
     """
-    phone_regex = r'(?:(?:(?:(?:\+84|0084)|0)[\s.-]?(?:\d[\s.-]?){9,10})|\((?:0\d{2,3})\)[\s.-]?(?:\d[\s.-]?){7})'
+    phone_regex = r'''(?:
+                        (?:(?:(?:\+84|0084)|0)[\s.-]?(?:[13456789][\s.-]?(?:\d[\s.-]?){7}\d))
+                        |
+                        (?:(?:(?:02)(?:\d[\s.-]?){8,9}))
+                        |
+                        \((?:0\d{2,3})\)[\s.-]?(?:\d[\s.-]?){7}
+                        |
+                        (?:(?:1800|1900)[\s.-]?(?:\d[\s.-]?){4,6})
+                        |
+                        \((?:\+84|0084)\)[\s.-]?(?:\d[\s.-]?){8}\d
+                        )'''
 
-    found_numbers = re.findall(phone_regex, text)
+    found_numbers = re.findall(phone_regex, text, flags=re.VERBOSE)
 
     phone_lists=[]
     for number in found_numbers:
