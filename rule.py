@@ -46,8 +46,8 @@ def operating_license(text):
     Returns:
         list: Normalized operating license numbers
     """
-    # pattern: xxxx/yyy-GPHĐ 
-    license_regex = r'\b\d{2,5}\s*/\s*(HCM|SYT)(?:-GPHĐ)?\b'
+    # pattern: xxxx/yyy-GPHĐ (xxxx can be 2-5 digits, yyy can be HCM, SYT, or BYT)
+    license_regex = r'\b\d{2,5}\s*/\s*(HCM|SYT|BYT)(?:-GPHĐ)?\b'
     
     full_licenses = []
     for match in re.finditer(license_regex, text):
