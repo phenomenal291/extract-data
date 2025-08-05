@@ -36,3 +36,25 @@ def phone(text):
         if clean_num:
             phone_lists.append(clean_num)
     return phone_lists
+
+def operating_license(text):
+    """
+    Extract and normalize Vietnamese operating license numbers from text.
+    Args:
+        text (str): Input text to search
+        
+    Returns:
+        list: Normalized operating license numbers
+    """
+    # pattern: xxxx/yyy-GPHĐ 
+    license_regex = r'\b\d{2,5}\s*/\s*(HCM|SYT)(?:-GPHĐ)?\b'
+    
+    full_licenses = []
+    for match in re.finditer(license_regex, text):
+        license = match.group(0)
+        normalized = re.sub(r'\s*/\s*', '/', license)
+        if not normalized.endswith('-GPHĐ'):
+            normalized += '-GPHĐ'
+        full_licenses.append(normalized)
+    
+    return full_licenses
