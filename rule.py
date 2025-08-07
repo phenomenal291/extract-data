@@ -37,24 +37,74 @@ def phone(text):
             phone_lists.append(clean_num)
     return phone_lists
 
-def operating_license(text):
+def extract_licenses_and_certificates(text):
     """
-    Extract and normalize Vietnamese operating license numbers from text.
+    Extract and normalize Vietnamese operating licenses and medical certificates.
     Args:
         text (str): Input text to search
         
     Returns:
-        list: Normalized operating license numbers
+        dict: Dictionary with separate lists for licenses and certificates
     """
-    # pattern: xxxx/yyy-GPHĐ (xxxx can be 2-5 digits, yyy can be HCM, SYT, or BYT)
-    license_regex = r'\b\d{2,5}\s*/\s*(HCM|SYT|BYT)(?:-GPHĐ)?\b'
+    # Combined pattern for both types
+    combined_regex = r'\b\d{2,6}\s*/\s*(HCM|SYT|BYT)(?:-(GPHĐ|CCHN))?\b'
     
-    full_licenses = []
-    for match in re.finditer(license_regex, text):
-        license = match.group(0)
-        normalized = re.sub(r'\s*/\s*', '/', license)
-        if not normalized.endswith('-GPHĐ'):
-            normalized += '-GPHĐ'
-        full_licenses.append(normalized)
+    operating_licenses = []
+    medical_certificates = []
     
-    return full_licenses
+    for match in re.finditer(combined_regex, text):
+        full_match = match.group(0)
+        number_part = match.group(0).split('/')[0].strip()
+        agency_part = match.group(1)  # HCM, SYT, BYT
+        suffix_part = match.group(2)  # GPHĐ or CCHN
+        
+        # Normalize spacing
+        base_format = f"{number_part}/{agency_part}"
+        
+        if suffix_part:
+            # Already has suffix, determine type
+            if suffix_part == 'GPHĐ':
+                operating_licenses.append(f"{base_format}-GPHĐ")
+            elif suffix_part == 'CCHN' and agency_part == 'HCM':
+                medical_certificates.append(f"{base_format}-CCHN")
+        else:
+            # No suffix, check context to determine type
+            context = text[max(0, match.start()-50):match.end()+50].lower()
+            
+            # Keywords for operating license
+            license_keywords = ['giấy phép hoạt động', 'gphđ', 'phép hoạt động', 'hoạt động']
+            
+            # Keywords for medical certificate (only for HCM)
+            medical_keywords = ['chứng chỉ hành nghề', 'cchn', 'hành nghề', 'chứng chỉ']
+            
+            # Determine type based on context
+            has_license_context = any(keyword in context for keyword in license_keywords)
+            has_medical_context = any(keyword in context for keyword in medical_keywords)
+            
+            if has_license_context and not has_medical_context:
+                operating_licenses.append(f"{base_format}-GPHĐ")
+            elif has_medical_context and not has_license_context and agency_part == 'HCM':
+                medical_certificates.append(f"{base_format}-CCHN")
+            elif not has_license_context and not has_medical_context:
+                # Default behavior: operating license for all agencies, medical certificate only for HCM
+                if agency_part in ['SYT', 'BYT']:
+                    operating_licenses.append(f"{base_format}-GPHĐ")
+                elif agency_part == 'HCM':
+                    # For HCM without context, could be either - add both possibilities
+                    operating_licenses.append(f"{base_format}-GPHĐ")
+    
+    return {
+        'operating_licenses': list(set(operating_licenses)),
+        'medical_certificates': list(set(medical_certificates))
+    }
+
+# Keep separate functions for backward compatibility
+def operating_license(text):
+    """Extract operating licenses only"""
+    result = extract_licenses_and_certificates(text)
+    return result['operating_licenses']
+
+def medical_certificate(text):
+    """Extract medical certificates only"""
+    result = extract_licenses_and_certificates(text)
+    return result['medical_certificates']
