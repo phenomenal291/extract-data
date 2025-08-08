@@ -35,7 +35,7 @@ def extract_phone(text):
         
         if clean_num:
             phone_lists.append(clean_num)
-    return phone_lists
+    return list(set(phone_lists))
 
 def extract_licenses_and_certificates(text):
     """
